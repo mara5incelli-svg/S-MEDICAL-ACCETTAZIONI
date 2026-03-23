@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S-Medical — Audit Front Office</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Helvetica Neue',Arial,sans-serif;background:#f7f6f2;color:#1a1a18;min-height:100vh}
+.header{background:#1d4e89;color:#fff;padding:16px 24px;display:flex;align-items:center;gap:14px;border-bottom:3px solid #163c6e}
+.logo{width:38px;height:38px;background:#fff;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#1d4e89;flex-shrink:0}
+.header h1{font-size:17px;font-weight:700}
+.header p{font-size:12px;opacity:.75;margin-top:2px}
+.main{max-width:920px;margin:0 auto;padding:24px 16px}
+.tabs{display:flex;gap:2px;background:#f0eeea;border-radius:10px;padding:4px;margin-bottom:22px;border:1px solid #e0ddd6}
+.tab{flex:1;padding:9px 12px;border:none;background:transparent;border-radius:6px;font-size:13px;font-weight:600;color:#5a5a55;cursor:pointer;font-family:inherit;transition:all .15s}
+.tab.active{background:#fff;color:#1d4e89;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.panel{display:none}.panel.active{display:block}
+.card{background:#fff;border:1px solid #e0ddd6;border-radius:10px;padding:20px;margin-bottom:16px}
+.card-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#9a9a94;margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat{background:#f0eeea;border-radius:6px;padding:12px 14px}
+.stat-label{font-size:11px;color:#9a9a94;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.stat-value{font-size:26px;font-weight:700}
+.stat-sub{font-size:12px;color:#5a5a55;margin-top:2px}
+.upload-zone{position:relative;border:1.5px dashed #c8c5bc;border-radius:8px;padding:20px 14px;text-align:center;cursor:pointer;background:#f0eeea;transition:all .2s}
+.upload-zone.loaded{border-style:solid;border-color:#0f6e56;background:#e1f5ee}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-zone .icon{font-size:22px;margin-bottom:5px}
+.upload-zone .lbl{font-size:13px;font-weight:600;color:#5a5a55}
+.upload-zone .sub{font-size:11px;color:#9a9a94;margin-top:2px}
+.upload-zone .fname{font-size:12px;font-weight:700;color:#0f6e56;margin-top:4px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;background:#1d4e89;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn:hover{background:#163c6e}
+.btn:disabled{background:#ccc;color:#888;cursor:not-allowed}
+.btn.success{background:#0f6e56}.btn.success:hover{background:#0a5040}
+.btn.outline{background:transparent;color:#1d4e89;border:1.5px solid #1d4e89}
+.btn.outline:hover{background:#e8f0fa}
+.btn.sm{padding:7px 14px;font-size:13px}
+.btn.danger-outline{background:transparent;color:#a32d2d;border:1.5px solid #a32d2d}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.field{margin-bottom:14px}
+.field-label{font-size:12px;font-weight:600;color:#5a5a55;display:block;margin-bottom:4px}
+.input{width:100%;padding:8px 10px;border:1px solid #e0ddd6;border-radius:6px;font-size:13px;font-family:inherit}
+.input:focus{outline:none;border-color:#1d4e89}
+textarea.input{resize:vertical;min-height:70px}
+.divider{height:1px;background:#e0ddd6;margin:16px 0}
+.alert{padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:12px;border-left:3px solid}
+.alert.info{background:#e8f0fa;color:#1d4e89;border-color:#1d4e89}
+.alert.ok{background:#e1f5ee;color:#0f6e56;border-color:#0f6e56}
+.alert.warn{background:#faeeda;color:#854f0b;border-color:#854f0b}
+.alert.danger{background:#fcebeb;color:#a32d2d;border-color:#a32d2d}
+.section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#9a9a94;margin-bottom:6px}
+table.dt{width:100%;border-collapse:collapse;font-size:13px}
+table.dt th{padding:8px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#9a9a94;border-bottom:1px solid #e0ddd6;background:#f0eeea}
+table.dt th.r{text-align:right}
+table.dt td{padding:9px 10px;border-bottom:1px solid #e0ddd6}
+table.dt td.r{text-align:right}
+table.dt td.b{font-weight:700}
+table.dt tr.tot td{background:#e8f0fa;font-weight:700;color:#1d4e89}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.badge.green{background:#e1f5ee;color:#0f6e56}
+.badge.red{background:#fcebeb;color:#a32d2d}
+.badge.blue{background:#e8f0fa;color:#1d4e89}
+.badge.warn{background:#faeeda;color:#854f0b}
+.history-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #e0ddd6}
+.history-row:last-child{border-bottom:none}
+.history-del{background:none;border:none;cursor:pointer;color:#9a9a94;font-size:14px;padding:3px 7px;border-radius:4px}
+.history-del:hover{background:#fcebeb;color:#a32d2d}
+.empty{text-align:center;padding:32px;color:#9a9a94;font-size:14px}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+.overlay.active{display:flex}
+.overlay-box{background:#fff;border-radius:12px;padding:36px;text-align:center;max-width:340px;width:90%}
+.spinner{width:36px;height:36px;border:3px solid #e0ddd6;border-top-color:#1d4e89;border-radius:50%;margin:0 auto 14px;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.key-ok{background:#e1f5ee;border-left:3px solid #0f6e56}
+.key-warn{background:#faeeda;border-left:3px solid #854f0b}
+.api-banner{background:#faeeda;border-bottom:2px solid #854f0b;padding:10px 24px;font-size:13px;color:#854f0b;font-weight:600;cursor:pointer;text-align:center;display:none}
+.api-banner.show{display:block}
+@media(max-width:640px){.grid2,.grid4{grid-template-columns:1fr}.main{padding:16px 12px}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">SM</div>
+  <div>
+    <h1>S-Medical Group — Piattaforma Audit Front Office</h1>
+    <p>Generazione automatica degli audit settimanali e mensili</p>
+  </div>
+</div>
+<div class="api-banner" id="api-banner" onclick="document.querySelector('.tab[data-tab=impostazioni]').click()">
+  ⚠️ API Key non configurata — clicca qui per impostarla e abilitare la generazione degli audit →
+</div>
+
+<div class="main">
+  <div class="tabs">
+    <button class="tab active" data-tab="settimanale" onclick="showTab('settimanale',this)">📊 Settimanale</button>
+    <button class="tab" data-tab="mensile" onclick="showTab('mensile',this)">📅 Mensile</button>
+    <button class="tab" data-tab="storico" onclick="showTab('storico',this)">🗂 Storico</button>
+    <button class="tab" data-tab="impostazioni" onclick="showTab('impostazioni',this)">⚙️ Impostazioni</button>
+  </div>
+
+  <!-- SETTIMANALE -->
+  <div class="panel active" id="panel-settimanale">
+    <div class="card">
+      <div class="card-title">Periodo di riferimento</div>
+      <div class="grid2">
+        <div class="field"><label class="field-label">Data inizio settimana</label><input type="date" id="week-start" class="input"></div>
+        <div class="field"><label class="field-label">Data fine settimana</label><input type="date" id="week-end" class="input"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Carica file Excel GIPO</div>
+      <div class="grid2" style="margin-bottom:14px">
+        <div>
+          <div class="section-label">File principale (aree + poliambulatorio)</div>
+          <div class="upload-zone" id="zone-main">
+            <input type="file" accept=".xlsx,.xls" onchange="loadFile(event,'main')">
+            <div class="icon">📂</div><div class="lbl">Clicca o trascina</div>
+            <div class="sub">Export accettazioni (tutte le aree tranne Lab)</div>
+            <div class="fname" id="fname-main"></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-label">File Laboratorio</div>
+          <div class="upload-zone" id="zone-lab">
+            <input type="file" accept=".xlsx,.xls" onchange="loadFile(event,'lab')">
+            <div class="icon">🧪</div><div class="lbl">Clicca o trascina</div>
+            <div class="sub">Export assegnazioni laboratorio</div>
+            <div class="fname" id="fname-lab"></div>
+          </div>
+        </div>
+      </div>
+      <button class="btn" id="btn-calcola" onclick="calcola()" disabled>⚡ Calcola Accettazioni</button>
+    </div>
+    <div class="card" id="card-risultati" style="display:none">
+      <div class="card-title">Risultati calcolati</div>
+      <div class="grid4" id="stats-sett" style="margin-bottom:16px"></div>
+      <table class="dt" id="table-risultati">
+        <thead><tr><th>MacroArea</th><th class="r">Totale</th><th class="r">Privati</th><th class="r">Assicurati</th><th class="r">% Ass.</th></tr></thead>
+        <tbody id="tbody-risultati"></tbody>
+      </table>
+      <div id="confronto-sett" style="display:none;margin-top:16px">
+        <div class="divider"></div>
+        <div class="card-title" id="confronto-title"></div>
+        <table class="dt"><thead><tr><th>MacroArea</th><th class="r">Prec.</th><th class="r">Corrente</th><th class="r">Diff.</th><th class="r">Var.%</th></tr></thead><tbody id="tbody-confronto"></tbody></table>
+      </div>
+      <div id="no-prev-alert" class="alert warn" style="display:none;margin-top:12px">⚠️ Nessuna settimana precedente in storico. L'audit verrà generato senza confronto.</div>
+      <div class="divider"></div>
+      <div class="field"><label class="field-label">Note aggiuntive (opzionale)</label><textarea class="input" id="note-sett" placeholder="Contesti particolari da includere nell'analisi..."></textarea></div>
+      <div class="actions">
+        <button class="btn success" onclick="generaAudit('settimanale')">📝 Genera Audit</button>
+        <button class="btn outline sm" onclick="salvaStorico()">💾 Salva in storico</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MENSILE -->
+  <div class="panel" id="panel-mensile">
+    <div class="card">
+      <div class="card-title">Periodo di riferimento</div>
+      <div class="grid2">
+        <div class="field"><label class="field-label">Mese corrente</label><input type="month" id="ref-month" class="input" onchange="checkPrevMese()"></div>
+        <div class="field"><label class="field-label">Mese di confronto</label><input type="month" id="cmp-month" class="input" onchange="checkPrevMese()"></div>
+      </div>
+    </div>
+    <div id="prev-storico-ok" style="display:none" class="alert ok" id="prev-mese-ok"></div>
+    <div class="card">
+      <div class="card-title">File mese corrente</div>
+      <div class="grid2">
+        <div>
+          <div class="section-label">File principale</div>
+          <div class="upload-zone" id="zone-m-main">
+            <input type="file" accept=".xlsx,.xls" onchange="loadFile(event,'m-main')">
+            <div class="icon">📂</div><div class="lbl">File aree (mese corrente)</div>
+            <div class="fname" id="fname-m-main"></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-label">File Laboratorio</div>
+          <div class="upload-zone" id="zone-m-lab">
+            <input type="file" accept=".xlsx,.xls" onchange="loadFile(event,'m-lab')">
+            <div class="icon">🧪</div><div class="lbl">File lab (mese corrente)</div>
+            <div class="fname" id="fname-m-lab"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-prev-files">
+      <div class="card-title">File mese precedente (nessun dato in storico)</div>
+      <div class="alert warn">⚠️ Carica i file del mese precedente manualmente.</div>
+      <div class="grid2" style="margin-top:12px">
+        <div>
+          <div class="section-label">File principale</div>
+          <div class="upload-zone" id="zone-mp-main">
+            <input type="file" accept=".xlsx,.xls" onchange="loadFile(event,'mp-main')">
+            <div class="icon">📂</div><div class="lbl">File aree (mese prec.)</div>
+            <div class="fname" id="fname-mp-main"></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-label">File Laboratorio</div>
+          <div class="upload-zone" id="zone-mp-lab">
+            <input type="file" accept=".xlsx,.xls" onchange="loadFile(event,'mp-lab')">
+            <div class="icon">🧪</div><div class="lbl">File lab (mese prec.)</div>
+            <div class="fname" id="fname-mp-lab"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card"><button class="btn" onclick="calcolaMensile()">⚡ Calcola dati mensili</button></div>
+    <div class="card" id="card-risultati-mensili" style="display:none">
+      <div class="card-title" id="title-mens"></div>
+      <div class="grid4" id="stats-mens" style="margin-bottom:16px"></div>
+      <table class="dt"><thead><tr><th>MacroArea</th><th class="r">Mese corrente</th><th class="r">Mese prec.</th><th class="r">Diff.</th><th class="r">Var.%</th></tr></thead><tbody id="tbody-mens"></tbody></table>
+      <div class="divider"></div>
+      <div class="field"><label class="field-label">Note aggiuntive (opzionale)</label><textarea class="input" id="note-mens" placeholder="Contesti particolari per questo mese..."></textarea></div>
+      <div class="actions">
+        <button class="btn success" onclick="generaAudit('mensile')">📝 Genera Audit Mensile</button>
+        <button class="btn outline sm" onclick="salvaStoricoMensile()">💾 Salva in storico</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STORICO -->
+  <div class="panel" id="panel-storico">
+    <div class="card">
+      <div class="card-title">Storico settimanale</div>
+      <div id="list-storico-sett"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Storico mensile</div>
+      <div id="list-storico-mens"></div>
+    </div>
+  </div>
+
+  <!-- IMPOSTAZIONI -->
+  <div class="panel" id="panel-impostazioni">
+    <div class="card">
+      <div class="card-title">API Key Anthropic</div>
+      <div class="alert info" style="margin-bottom:14px">Per generare gli audit è necessaria una API Key Anthropic. Viene salvata solo nel suo browser.</div>
+      <div class="field">
+        <label class="field-label">API Key (inizia con sk-ant-...)</label>
+        <input type="password" id="api-key-input" class="input" placeholder="sk-ant-api03-..." style="font-family:monospace" oninput="checkApiKeyFormat(this.value)">
+      </div>
+      <div id="key-status" style="margin-bottom:12px"></div>
+      <div class="actions">
+        <button class="btn" onclick="salvaApiKey()">💾 Salva API Key</button>
+        <button class="btn outline sm" onclick="window.open('https://console.anthropic.com/settings/keys','_blank')">🔗 Ottieni API Key →</button>
+      </div>
+      <div class="divider"></div>
+      <div class="card-title">Come ottenere la API Key</div>
+      <ol style="font-size:13px;color:#5a5a55;line-height:1.9;padding-left:20px">
+        <li>Vai su <strong>console.anthropic.com</strong></li>
+        <li>Accedi o registrati</li>
+        <li>Vai su <strong>Settings → API Keys</strong></li>
+        <li>Clicca <strong>"Create Key"</strong></li>
+        <li>Copia la key e incollala qui sopra</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY GENERAZIONE -->
+<div class="overlay" id="overlay">
+  <div class="overlay-box">
+    <div class="spinner"></div>
+    <div style="font-size:15px;font-weight:700;margin-bottom:6px">Generazione in corso...</div>
+    <div style="font-size:13px;color:#5a5a55" id="overlay-status">Preparazione dati...</div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// COSTANTI
+// ═══════════════════════════════════════════════════════════════
+const MACROAREE = ['Fisioterapia','Poliambulatorio','Poliambulatorio Pediatrico','Centro Pediatrico','Radiologia','Laboratorio'];
+
+const MEDICI_MAP = {
+  'Fisioterapia':['audia christian','pietropaoli stefano','aceti alessandro',"d'ambrosio alessandro",'farina francesco','mastrantoni matteo','mastrogiacomo francesco','saccucci michela','infermiera','aceti giammarco','camerucci emanuela','vastarella bruno','caschera giovanni','castellitto domenico','del gusto federico','delcogliano antonio','franceschini marco','latte carmine','morelli federico','penna antonio','picchi aurelio','ranalletta alessandro','rotondi fabio','speciali roberto','capobasso mirco','di vito pierluigi','arrabito andrea','covarelli matteo','longo francesco','salvi giacomo','alberto zovini','zovini alberto','sementilli','sementilli paolo','romano'],
+  'Poliambulatorio':['caringi','villani','capoccia',"d'elia",'neroni','cicconetti','ferrara','gemmiti maria paola','tsiopoulos','cinelli','spagnolo','di girolamo','martini','aversa','cereghino','pandozzi','rossini','di ruscio','forte','tomaselli','diamanti','piazze','ciardo',"d'andrea",'millefiorni','oropallo','velluto','angelini','bianchi','ciotoli','de risi','di stefano','rosati','sasso','secondi','verrecchia','palombi','frasca','celani','giangrande','milani','pittiglio','canfora','de gasperis','carlini','mastropietro','alonzi','bruno','cataldi','wlderk','esposito','iafrate','maltese','prata','suraci'],
+  'Poliambulatorio Pediatrico':['di capua matteo','bonfiglio nadia','salvini matteo','benacquista luca','niccoli antonio augusto','noto christian','rossetti danilo','salvione cecilia','bruni oliviero','simonelli valerio','morini francesco'],
+  'Centro Pediatrico':['brusca federica','castellucci manuela','corsi elena','de nicolo chiara','la pietra eleonora','macioce valentina','mariani angela','palmieri sara','paris laura','perfetti ilaria','veronesi carla','monica gemmiti','polisena laura','reale martina','calicchia erika','pirri valentina','bunduc loredana','natale eugenia','bunduc loredana florina'],
+  'Radiologia':['giagu sara','iorio nicole','marandola sergio','mattone monica','monti riccardo','torriero fabio','risonanza magnetica','risonanza basso campo','rx','moc','mammografia','radiologia moc','radiologia rx']
+};
+
+const LISTINI_ASS = new Set(['allianz','aon','assyrete-myrete','axa','axa service','blue assistance','blue assistance pacchetti prevenzione','campa pacchetti prevenzione','caspie','caspie pacchetti prevenzione','cesare pozzo','coop salute - health assistance','cooperazione salute','cooperazione salute pacchetti prevenzione','faschim','faschim pacchetti prevenzione','fasdac','fasdac pacchetti prevenzione','fasi','fasi pacchetti prevenzione','fisde','fisde pacchetti prevenzione','fondo care','generali','generali pacchetti prevenzione','health point pacchetti prevenzione','insalute/blue assistance','insieme salute','metasalute pacchetto prevenzione','mutua nuova sanita','mutua sanita','my assistance','nobis','odontonetwork s.r.l.','one net-one care','poste','poste pacchetti prevenzione','previmedical','previmedical pacchetti prevenzione','previmedical uniroma tre pacchetti prevenzione','progesa','unisalute','unisalute pacchetti prevenzione']);
+
+const SK = 'smedical_storico_v2';
+const SMK = 'smedical_storico_mensile_v2';
+const AKK = 'smedical_apikey';
+
+const STORICO_INIT = [
+  {label:'02/03/2026 — 08/03/2026',data:new Date().toISOString(),aree:{'Fisioterapia':{totale:261,privati:261,assicurati:0},'Poliambulatorio':{totale:88,privati:88,assicurati:0},'Poliambulatorio Pediatrico':{totale:5,privati:5,assicurati:0},'Centro Pediatrico':{totale:24,privati:24,assicurati:0},'Radiologia':{totale:160,privati:160,assicurati:0},'Laboratorio':{totale:34,privati:34,assicurati:0}},totali:{totale:572,privati:572,assicurati:0}},
+  {label:'09/03/2026 — 15/03/2026',data:new Date().toISOString(),aree:{'Fisioterapia':{totale:189,privati:189,assicurati:0},'Poliambulatorio':{totale:82,privati:81,assicurati:1},'Poliambulatorio Pediatrico':{totale:0,privati:0,assicurati:0},'Centro Pediatrico':{totale:26,privati:26,assicurati:0},'Radiologia':{totale:144,privati:144,assicurati:0},'Laboratorio':{totale:25,privati:25,assicurati:0}},totali:{totale:466,privati:465,assicurati:1}}
+];
+
+const STORICO_MENS_INIT = [
+  {mese:'2026-01',label:'gennaio 2026',data:new Date().toISOString(),aree:{'Fisioterapia':{totale:509,privati:509,assicurati:0},'Poliambulatorio':{totale:202,privati:202,assicurati:0},'Poliambulatorio Pediatrico':{totale:5,privati:5,assicurati:0},'Centro Pediatrico':{totale:59,privati:59,assicurati:0},'Radiologia':{totale:356,privati:356,assicurati:0},'Laboratorio':{totale:112,privati:112,assicurati:0}},totali:{totale:1243,privati:1243,assicurati:0}},
+  {mese:'2026-02',label:'febbraio 2026',data:new Date().toISOString(),aree:{'Fisioterapia':{totale:741,privati:741,assicurati:0},'Poliambulatorio':{totale:307,privati:307,assicurati:0},'Poliambulatorio Pediatrico':{totale:3,privati:3,assicurati:0},'Centro Pediatrico':{totale:83,privati:83,assicurati:0},'Radiologia':{totale:552,privati:552,assicurati:0},'Laboratorio':{totale:142,privati:142,assicurati:0}},totali:{totale:1828,privati:1828,assicurati:0}}
+];
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+const FILES = {};
+let CALCOLATI = null;
+let CALCOLATI_MENS = null;
+
+function loadStorico(){
+  try{const s=JSON.parse(localStorage.getItem(SK)||'[]');const m=[...STORICO_INIT];s.forEach(x=>{if(!m.find(y=>y.label===x.label))m.push(x);});return m;}
+  catch{return[...STORICO_INIT];}
+}
+function saveStorico(s){localStorage.setItem(SK,JSON.stringify(s));}
+function loadStoricoMens(){
+  try{const s=JSON.parse(localStorage.getItem(SMK)||'[]');const m=[...STORICO_MENS_INIT];s.forEach(x=>{if(!m.find(y=>y.mese===x.mese))m.push(x);});return m.sort((a,b)=>a.mese.localeCompare(b.mese));}
+  catch{return[...STORICO_MENS_INIT];}
+}
+function saveStoricoMens(s){localStorage.setItem(SMK,JSON.stringify(s));}
+function getApiKey(){return localStorage.getItem(AKK)||'';}
+function setApiKeyLS(k){localStorage.setItem(AKK,k.trim());}
+
+let STORICO = loadStorico();
+let STORICO_MENS = loadStoricoMens();
+
+// ═══════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════
+function isAss(l){return LISTINI_ASS.has((l||'').trim().toLowerCase());}
+
+function getArea(medico, prestazione){
+  if(!medico)return null;
+  const m=medico.trim().toLowerCase();
+  const p=(prestazione||'').toLowerCase();
+  if(m.includes('veloccia')){
+    return['osteopati','osteopatia','osteopat'].some(x=>p.includes(x))?'Fisioterapia':null;
+  }
+  for(const[area,medici]of Object.entries(MEDICI_MAP)){
+    for(const med of medici){
+      if(m===med||m.includes(med)||med.includes(m))return area;
+    }
+  }
+  return null;
+}
+
+function elaboraMain(data){
+  const r={};
+  MACROAREE.filter(a=>a!=='Laboratorio').forEach(a=>{r[a]={totale:0,privati:0,assicurati:0};});
+  data.forEach(row=>{
+    if((row['Stato']||'').trim().toLowerCase()==='prenotata')return;
+    const area=getArea(row['Medici']||'',row['Prestazione']||'');
+    if(!area)return;
+    r[area].totale++;
+    if(isAss(row['Listino']||''))r[area].assicurati++;
+    else r[area].privati++;
+  });
+  return r;
+}
+
+function elaboraLab(data){
+  const map=new Map();
+  data.forEach(row=>{
+    const id=row['N. Assegnazione'];
+    if(id&&!map.has(id))map.set(id,row['Listino']||'');
+  });
+  let t=0,p=0,a=0;
+  map.forEach(l=>{t++;if(isAss(l))a++;else p++;});
+  return{totale:t,privati:p,assicurati:a};
+}
+
+function totali(aree){
+  let t=0,p=0,a=0;
+  MACROAREE.forEach(x=>{t+=aree[x].totale;p+=aree[x].privati;a+=aree[x].assicurati;});
+  return{totale:t,privati:p,assicurati:a};
+}
+
+function formatD(s){if(!s)return'';return new Date(s).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});}
+function formatM(s){if(!s)return'';return new Date(s+'-01').toLocaleDateString('it-IT',{month:'long',year:'numeric'});}
+function pct(c,p){if(!p||p===0)return'N/D';return((c-p)/p*100).toFixed(1);}
+function sign(n){return n>=0?'+':'';}
+function badgeColor(n){return n>=0?'green':'red';}
+
+// ═══════════════════════════════════════════════════════════════
+// FILE LOADING
+// ═══════════════════════════════════════════════════════════════
+function loadFile(e, key){
+  const file=e.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const wb=XLSX.read(ev.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      FILES[key]=XLSX.utils.sheet_to_json(ws,{defval:''});
+      const zone=document.getElementById('zone-'+key);
+      const fname=document.getElementById('fname-'+key);
+      if(zone)zone.classList.add('loaded');
+      if(fname)fname.textContent='✓ '+file.name;
+      if(key==='main'||key==='lab'){
+        document.getElementById('btn-calcola').disabled=!(FILES['main']&&FILES['lab']);
+      }
+    }catch(err){alert('Errore lettura file: '+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CALCOLA SETTIMANALE
+// ═══════════════════════════════════════════════════════════════
+function calcola(){
+  if(!FILES['main']||!FILES['lab'])return;
+  const aree=elaboraMain(FILES['main']);
+  aree['Laboratorio']=elaboraLab(FILES['lab']);
+  const tot=totali(aree);
+  CALCOLATI={aree,totali:tot};
+
+  // Stats
+  const sg=document.getElementById('stats-sett');
+  sg.innerHTML=`
+    <div class="stat"><div class="stat-label">Totale</div><div class="stat-value">${tot.totale}</div></div>
+    <div class="stat"><div class="stat-label">Privati</div><div class="stat-value">${tot.privati}</div><div class="stat-sub">${tot.totale?Math.round(tot.privati/tot.totale*100):0}%</div></div>
+    <div class="stat"><div class="stat-label">Assicurati</div><div class="stat-value">${tot.assicurati}</div><div class="stat-sub">${tot.totale?Math.round(tot.assicurati/tot.totale*100):0}%</div></div>
+    <div class="stat"><div class="stat-label">Aree attive</div><div class="stat-value">${MACROAREE.filter(a=>aree[a].totale>0).length}</div><div class="stat-sub">su ${MACROAREE.length}</div></div>`;
+
+  // Tabella risultati
+  const tb=document.getElementById('tbody-risultati');
+  tb.innerHTML='';
+  MACROAREE.forEach(area=>{
+    const d=aree[area];
+    const p=d.totale>0?Math.round(d.assicurati/d.totale*100):0;
+    tb.innerHTML+=`<tr><td class="b">${area}</td><td class="r b">${d.totale}</td><td class="r">${d.privati}</td><td class="r">${d.assicurati}</td><td class="r"><span class="badge ${d.assicurati>0?'green':'warn'}">${p}%</span></td></tr>`;
+  });
+  tb.innerHTML+=`<tr class="tot"><td>TOTALE</td><td class="r">${tot.totale}</td><td class="r">${tot.privati}</td><td class="r">${tot.assicurati}</td><td class="r"><span class="badge blue">${tot.totale?Math.round(tot.assicurati/tot.totale*100):0}%</span></td></tr>`;
+
+  // Confronto precedente
+  if(STORICO.length>0){
+    const prev=STORICO[STORICO.length-1];
+    document.getElementById('confronto-title').textContent=`Confronto con settimana precedente (${prev.label})`;
+    const tc=document.getElementById('tbody-confronto');
+    tc.innerHTML='';
+    MACROAREE.forEach(area=>{
+      const c=aree[area].totale;
+      const p=(prev.aree[area]||{}).totale||0;
+      const d=c-p;
+      tc.innerHTML+=`<tr><td class="b">${area}</td><td class="r" style="color:#5a5a55">${p}</td><td class="r b">${c}</td><td class="r" style="color:${d>=0?'#0f6e56':'#a32d2d'};font-weight:600">${sign(d)}${d}</td><td class="r"><span class="badge ${badgeColor(d)}">${sign(d)}${pct(c,p)}%</span></td></tr>`;
+    });
+    const ct=tot.totale, pt=prev.totali?.totale||0, dt=ct-pt;
+    tc.innerHTML+=`<tr class="tot"><td>TOTALE</td><td class="r">${pt}</td><td class="r">${ct}</td><td class="r" style="color:${dt>=0?'#0f6e56':'#a32d2d'}">${sign(dt)}${dt}</td><td class="r"><span class="badge ${badgeColor(dt)}">${sign(dt)}${pct(ct,pt)}%</span></td></tr>`;
+    document.getElementById('confronto-sett').style.display='block';
+    document.getElementById('no-prev-alert').style.display='none';
+  } else {
+    document.getElementById('confronto-sett').style.display='none';
+    document.getElementById('no-prev-alert').style.display='block';
+  }
+
+  document.getElementById('card-risultati').style.display='block';
+  document.getElementById('card-risultati').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CALCOLA MENSILE
+// ═══════════════════════════════════════════════════════════════
+function checkPrevMese(){
+  const cmp=document.getElementById('cmp-month').value;
+  const trovato=STORICO_MENS.find(s=>s.mese===cmp);
+  const okEl=document.getElementById('prev-storico-ok');
+  const filesEl=document.getElementById('card-prev-files');
+  if(trovato){
+    okEl.textContent=`✓ ${formatM(cmp)} trovato in storico — Totale: ${trovato.totali.totale} accettazioni. Non serve caricare i file del mese precedente.`;
+    okEl.style.display='block';
+    filesEl.style.display='none';
+  } else {
+    okEl.style.display='none';
+    filesEl.style.display='block';
+  }
+}
+
+function calcolaMensile(){
+  if(!FILES['m-main']||!FILES['m-lab']){alert('Carica i file del mese corrente.');return;}
+  const cmp=document.getElementById('cmp-month').value;
+  const trovato=STORICO_MENS.find(s=>s.mese===cmp);
+  if(!trovato&&(!FILES['mp-main']||!FILES['mp-lab'])){alert('Nessun dato in storico per il mese precedente. Carica i file manualmente.');return;}
+
+  const curr=elaboraMain(FILES['m-main']);
+  curr['Laboratorio']=elaboraLab(FILES['m-lab']);
+  curr._totali=totali(curr);
+
+  let prev;
+  if(trovato){
+    prev={...trovato.aree,_totali:trovato.totali};
+  } else {
+    prev=elaboraMain(FILES['mp-main']);
+    prev['Laboratorio']=elaboraLab(FILES['mp-lab']);
+    prev._totali=totali(prev);
+  }
+  CALCOLATI_MENS={curr,prev};
+
+  const ref=document.getElementById('ref-month').value;
+  document.getElementById('title-mens').textContent=`${formatM(ref)} vs ${formatM(cmp)}`;
+
+  const ct=curr._totali,pt=prev._totali||{totale:0,privati:0,assicurati:0};
+  const d=ct.totale-pt.totale,pos=d>=0;
+  document.getElementById('stats-mens').innerHTML=`
+    <div class="stat"><div class="stat-label">Mese corrente</div><div class="stat-value">${ct.totale}</div></div>
+    <div class="stat"><div class="stat-label">Mese precedente</div><div class="stat-value">${pt.totale}</div></div>
+    <div class="stat"><div class="stat-label">Variazione</div><div class="stat-value" style="color:${pos?'#0f6e56':'#a32d2d'}">${sign(d)}${d}</div></div>
+    <div class="stat"><div class="stat-label">Var.%</div><div class="stat-value" style="color:${pos?'#0f6e56':'#a32d2d'}">${sign(d)}${pct(ct.totale,pt.totale)}%</div></div>`;
+
+  const tb=document.getElementById('tbody-mens');
+  tb.innerHTML='';
+  MACROAREE.forEach(area=>{
+    const c=curr[area].totale,p=(prev[area]||{}).totale||0,df=c-p;
+    tb.innerHTML+=`<tr><td class="b">${area}</td><td class="r b">${c}</td><td class="r" style="color:#5a5a55">${p}</td><td class="r" style="color:${df>=0?'#0f6e56':'#a32d2d'};font-weight:600">${sign(df)}${df}</td><td class="r"><span class="badge ${badgeColor(df)}">${sign(df)}${pct(c,p)}%</span></td></tr>`;
+  });
+  tb.innerHTML+=`<tr class="tot"><td>TOTALE</td><td class="r">${ct.totale}</td><td class="r">${pt.totale}</td><td class="r" style="color:${pos?'#0f6e56':'#a32d2d'}">${sign(d)}${d}</td><td class="r"><span class="badge ${badgeColor(d)}">${sign(d)}${pct(ct.totale,pt.totale)}%</span></td></tr>`;
+
+  document.getElementById('card-risultati-mensili').style.display='block';
+  document.getElementById('card-risultati-mensili').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STORICO
+// ═══════════════════════════════════════════════════════════════
+function salvaStorico(){
+  if(!CALCOLATI)return;
+  const ws=document.getElementById('week-start').value;
+  const we=document.getElementById('week-end').value;
+  const label=ws&&we?`${formatD(ws)} — ${formatD(we)}`:'Settimana '+new Date().toLocaleDateString('it-IT');
+  if(!STORICO.find(s=>s.label===label)){
+    STORICO.push({label,data:new Date().toISOString(),aree:CALCOLATI.aree,totali:CALCOLATI.totali});
+    saveStorico(STORICO);
+  }
+  renderStorico();
+  alert('✓ Salvato nello storico settimanale.');
+}
+
+function salvaStoricoMensile(){
+  if(!CALCOLATI_MENS)return;
+  const ref=document.getElementById('ref-month').value;
+  if(!ref){alert('Seleziona il mese di riferimento.');return;}
+  _salvaStoricoMens(ref,CALCOLATI_MENS.curr);
+  alert('✓ Salvato nello storico mensile.');
+}
+
+function _salvaStoricoMens(mese,curr){
+  const record={mese,label:formatM(mese),data:new Date().toISOString(),aree:curr,totali:curr._totali};
+  STORICO_MENS=STORICO_MENS.filter(s=>s.mese!==mese);
+  STORICO_MENS.push(record);
+  STORICO_MENS.sort((a,b)=>a.mese.localeCompare(b.mese));
+  saveStoricoMens(STORICO_MENS);
+  renderStoricoMens();
+}
+
+function renderStorico(){
+  const el=document.getElementById('list-storico-sett');
+  if(STORICO.length===0){el.innerHTML='<div class="empty">Nessun dato settimanale</div>';return;}
+  el.innerHTML=[...STORICO].reverse().map((s,i)=>`
+    <div class="history-row">
+      <div style="font-size:13px;font-weight:600;min-width:190px">${s.label}</div>
+      <div style="font-size:13px;color:#5a5a55;flex:1">Tot: <strong>${s.totali.totale}</strong> | Priv: ${s.totali.privati} | Ass: ${s.totali.assicurati}</div>
+      <button class="history-del" onclick="delStorico(${STORICO.length-1-i})">✕</button>
+    </div>`).join('');
+}
+
+function delStorico(i){
+  if(!confirm('Eliminare questo record?'))return;
+  STORICO.splice(i,1);saveStorico(STORICO);renderStorico();
+}
+
+function renderStoricoMens(){
+  const el=document.getElementById('list-storico-mens');
+  if(STORICO_MENS.length===0){el.innerHTML='<div class="empty">Nessun dato mensile</div>';return;}
+  el.innerHTML=[...STORICO_MENS].reverse().map(s=>`
+    <div class="history-row">
+      <div style="font-size:13px;font-weight:700;min-width:140px;text-transform:capitalize">${s.label}</div>
+      <div style="font-size:13px;color:#5a5a55;flex:1">Tot: <strong>${s.totali.totale}</strong> | Priv: ${s.totali.privati} | Ass: ${s.totali.assicurati}</div>
+      <button class="history-del" onclick="delStoricoMens('${s.mese}')">✕</button>
+    </div>`).join('');
+}
+
+function delStoricoMens(mese){
+  if(!confirm('Eliminare questo record mensile?'))return;
+  STORICO_MENS=STORICO_MENS.filter(s=>s.mese!==mese);
+  saveStoricoMens(STORICO_MENS);renderStoricoMens();checkPrevMese();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// API KEY
+// ═══════════════════════════════════════════════════════════════
+function checkApiKeyFormat(v){
+  const el=document.getElementById('key-status');
+  if(!v){el.innerHTML='';return;}
+  if(v.startsWith('sk-ant-')){el.innerHTML='<div class="alert ok">✓ Formato corretto.</div>';}
+  else{el.innerHTML='<div class="alert warn">⚠️ Il formato non sembra corretto (deve iniziare con sk-ant-).</div>';}
+}
+
+function salvaApiKey(){
+  const v=document.getElementById('api-key-input').value.trim();
+  if(!v){alert('Inserisci una API Key.');return;}
+  setApiKeyLS(v);
+  document.getElementById('api-banner').classList.remove('show');
+  alert('✓ API Key salvata correttamente.');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GENERA AUDIT
+// ═══════════════════════════════════════════════════════════════
+async function generaAudit(tipo){
+  const apiKey=getApiKey();
+  if(!apiKey||!apiKey.startsWith('sk-ant-')){
+    alert('Inserisci una API Key Anthropic valida nella tab ⚙️ Impostazioni.');
+    showTab('impostazioni',document.querySelector('.tab[data-tab=impostazioni]'));
+    return;
+  }
+
+  const overlay=document.getElementById('overlay');
+  const statusEl=document.getElementById('overlay-status');
+  overlay.classList.add('active');
+
+  const steps=['Preparazione dati...','Invio a Claude AI...','Generazione testo audit...','Formattazione documento...','Finalizzazione...'];
+  let si=0;statusEl.textContent=steps[0];
+  const iv=setInterval(()=>{si++;if(si<steps.length)statusEl.textContent=steps[si];},2500);
+
+  try{
+    const prompt=tipo==='settimanale'?buildPromptSett():buildPromptMens();
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,messages:[{role:'user',content:prompt}]})
+    });
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message||'Errore API');
+    const testo=data.content?.[0]?.text||'';
+    if(!testo)throw new Error('Risposta vuota');
+
+    clearInterval(iv);overlay.classList.remove('active');
+
+    // Download
+    const ws=tipo==='settimanale'?document.getElementById('week-start').value:'';
+    const we=tipo==='settimanale'?document.getElementById('week-end').value:'';
+    const ref=document.getElementById('ref-month')?.value||'';
+    const suffix=tipo==='settimanale'&&ws?`${ws}_${we}`:(ref||new Date().toISOString().slice(0,7));
+    const nome=tipo==='settimanale'?`AUDIT_SMEDICAL_${suffix}.txt`:`AUDIT_MENSILE_SMEDICAL_${suffix}.txt`;
+    const blob=new Blob([testo],{type:'text/plain;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=nome;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+
+    // Auto-salva storico
+    if(tipo==='settimanale'&&CALCOLATI){
+      const label=ws&&we?`${formatD(ws)} — ${formatD(we)}`:'Settimana '+new Date().toLocaleDateString('it-IT');
+      if(!STORICO.find(s=>s.label===label)){STORICO.push({label,data:new Date().toISOString(),aree:CALCOLATI.aree,totali:CALCOLATI.totali});saveStorico(STORICO);renderStorico();}
+    }
+    if(tipo==='mensile'&&CALCOLATI_MENS){
+      const ref2=document.getElementById('ref-month').value;
+      if(ref2)_salvaStoricoMens(ref2,CALCOLATI_MENS.curr);
+    }
+
+    alert(`✓ Audit generato!\nFile scaricato: "${nome}"\n\nIncollalo in Word per la formattazione finale.`);
+  }catch(err){
+    clearInterval(iv);overlay.classList.remove('active');
+    alert('Errore: '+err.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROMPT BUILDERS
+// ═══════════════════════════════════════════════════════════════
+function buildPromptSett(){
+  const ws=document.getElementById('week-start').value;
+  const we=document.getElementById('week-end').value;
+  const periodo=ws&&we?`${formatD(ws)} — ${formatD(we)}`:'settimana corrente';
+  const note=document.getElementById('note-sett').value;
+  const prev=STORICO.length>0?STORICO[STORICO.length-1]:null;
+  const {aree,totali:tot}=CALCOLATI;
+
+  const datiAree=MACROAREE.map(a=>`${a}: totale ${aree[a].totale}, privati ${aree[a].privati}, assicurati ${aree[a].assicurati}`).join('\n');
+  const datiPrev=prev
+    ?`SETTIMANA PRECEDENTE (${prev.label}):\nTotale: ${prev.totali.totale}, Privati: ${prev.totali.privati}, Assicurati: ${prev.totali.assicurati}\n`+MACROAREE.map(a=>`${a}: totale ${(prev.aree[a]||{}).totale||0}, privati ${(prev.aree[a]||{}).privati||0}, assicurati ${(prev.aree[a]||{}).assicurati||0}`).join('\n')
+    :'DATI SETTIMANA PRECEDENTE: non disponibili';
+
+  return `Sei un analista sanitario senior per S-Medical Group. Genera un documento di audit settimanale completo e professionale in italiano, seguendo ESATTAMENTE questa struttura:
+
+# AREA FRONT OFFICE S-MEDICAL — SETTIMANA ${periodo.toUpperCase()} — SVILUPPO ATTIVITÀ E RISULTATI
+
+# 1. PREMESSA
+Breve introduzione al documento (2-3 righe).
+
+# 2. OBIETTIVI
+- Ottimizzazione operativa
+- Incremento della domanda
+- Innovazioni tecnologiche
+- Formazione del personale
+- Gestione strategica dei periodi critici
+
+# 3. RISULTATI
+
+**1. Introduzione e sintesi dei dati**
+Analisi complessiva con dati settimana corrente e precedente, variazioni assolute e percentuali, lettura sintetica.
+
+**2. Sintesi per MacroArea**
+Per ogni area: dati correnti, precedenti, variazione assoluta e percentuale.
+
+**3. Peso delle MacroAree nella settimana corrente**
+Percentuale di ogni area sul totale con interpretazione.
+
+**Punti Positivi**
+Analisi dettagliata delle aree con performance positive.
+
+# 4. DIFFICOLTÀ
+Analisi approfondita di tutti i punti critici, cali e problemi rilevati.
+
+# 5. TREND E PATTERN OPERATIVI
+Interpretazione dei trend, concentrazione del calo, stagionalità.
+
+# 6. SUGGERIMENTI
+**A. Ottimizzazione operativa**
+**B. Incremento della domanda**
+**C. Innovazioni tecnologiche**
+**D. Formazione del personale**
+**E. Gestione strategica dei periodi critici**
+
+# 7. PRIORITÀ OPERATIVE IMMEDIATE
+Le prime 4 priorità numerate.
+
+# 8. CONCLUSIONE STRATEGICA
+Sintesi finale.
+
+---
+DATI SETTIMANA CORRENTE (${periodo}):
+Totale accettazioni: ${tot.totale}
+Accettazioni privati: ${tot.privati}
+Accettazioni assicurati: ${tot.assicurati}
+${datiAree}
+
+${datiPrev}
+${note?`\nNOTE AGGIUNTIVE:\n${note}`:''}
+
+Scrivi in italiano, professionale e dettagliato. Usa elenchi puntati. Nessuna tabella.`;
+}
+
+function buildPromptMens(){
+  const ref=document.getElementById('ref-month').value;
+  const cmp=document.getElementById('cmp-month').value;
+  const note=document.getElementById('note-mens').value;
+  const{curr,prev}=CALCOLATI_MENS;
+
+  const dC=MACROAREE.map(a=>`${a}: ${curr[a].totale} (priv: ${curr[a].privati}, ass: ${curr[a].assicurati})`).join('\n');
+  const dP=MACROAREE.map(a=>`${a}: ${(prev[a]||{}).totale||0} (priv: ${(prev[a]||{}).privati||0}, ass: ${(prev[a]||{}).assicurati||0})`).join('\n');
+  const vars=MACROAREE.map(a=>{const c=curr[a].totale,p=(prev[a]||{}).totale||0,d=c-p;return`${a}: da ${p} a ${c} (${sign(d)}${d}, ${d>=0?sign(d):''}${pct(c,p)}%)`;}).join('\n');
+
+  return `Sei un analista sanitario senior per S-Medical Group. Genera un documento di audit MENSILE completo e professionale in italiano, seguendo ESATTAMENTE questa struttura:
+
+# AREA FRONT OFFICE S-MEDICAL — MENSILE ${formatM(ref).toUpperCase()} — SVILUPPO ATTIVITÀ E RISULTATI
+
+# 1. PREMESSA
+# 2. OBIETTIVI
+# 3. RISULTATI
+Confronto mensile completo con variazioni % per area, punti positivi, chi sta trainando la crescita.
+
+# 4. DIFFICOLTÀ
+Aree in calo, criticità strutturali (assicurati=0), rischi.
+
+# 5. TREND E PATTERN OPERATIVI
+# 6. SUGGERIMENTI
+A) Operativa B) Domanda C) Tecnologica D) Formazione E) Periodi critici F) Strategica prioritaria
+
+# 7. PRIORITÀ OPERATIVE
+# 8. CONCLUSIONE STRATEGICA
+
+---
+DATI MESE CORRENTE (${formatM(ref)}):
+Totale: ${curr._totali.totale}, Privati: ${curr._totali.privati}, Assicurati: ${curr._totali.assicurati}
+${dC}
+
+DATI MESE PRECEDENTE (${formatM(cmp)}):
+Totale: ${prev._totali?prev._totali.totale:'N/D'}, Privati: ${prev._totali?prev._totali.privati:'N/D'}, Assicurati: ${prev._totali?prev._totali.assicurati:'N/D'}
+${dP}
+
+VARIAZIONI:
+${vars}
+${note?`\nNOTE:\n${note}`:''}
+
+Scrivi in italiano, professionale. Includi variazioni % specifiche. Solo testo ed elenchi, nessuna tabella.`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════════
+function showTab(name, btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  if(btn)btn.classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  // Date defaults
+  const today=new Date();
+  const dow=today.getDay();
+  const mon=new Date(today);mon.setDate(today.getDate()+(dow===0?-6:1-dow));
+  const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  document.getElementById('week-start').value=mon.toISOString().slice(0,10);
+  document.getElementById('week-end').value=sun.toISOString().slice(0,10);
+  const now=new Date();
+  const prevM=new Date(now.getFullYear(),now.getMonth()-1,1);
+  document.getElementById('ref-month').value=now.toISOString().slice(0,7);
+  document.getElementById('cmp-month').value=prevM.toISOString().slice(0,7);
+
+  // API key
+  const savedKey=getApiKey();
+  if(savedKey){
+    document.getElementById('api-key-input').value=savedKey;
+    checkApiKeyFormat(savedKey);
+  } else {
+    document.getElementById('api-banner').classList.add('show');
+  }
+
+  // Storico
+  renderStorico();
+  renderStoricoMens();
+  checkPrevMese();
+});
+</script>
+</body>
+</html>
