@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>S-Medical — Audit Front Office</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Helvetica Neue',Arial,sans-serif;background:#f7f6f2;color:#1a1a18;min-height:100vh}
@@ -99,6 +100,7 @@ table.dt tr.tot td{background:#e8f0fa;font-weight:700;color:#1d4e89}
   <div class="tabs">
     <button class="tab active" data-tab="settimanale" onclick="showTab('settimanale',this)">📊 Settimanale</button>
     <button class="tab" data-tab="mensile" onclick="showTab('mensile',this)">📅 Mensile</button>
+    <button class="tab" data-tab="grafici" onclick="showTab('grafici',this)">📈 Grafici</button>
     <button class="tab" data-tab="storico" onclick="showTab('storico',this)">🗂 Storico</button>
     <button class="tab" data-tab="impostazioni" onclick="showTab('impostazioni',this)">⚙️ Impostazioni</button>
   </div>
@@ -215,12 +217,69 @@ table.dt tr.tot td{background:#e8f0fa;font-weight:700;color:#1d4e89}
     <div class="card" id="card-risultati-mensili" style="display:none">
       <div class="card-title" id="title-mens"></div>
       <div class="grid4" id="stats-mens" style="margin-bottom:16px"></div>
-      <table class="dt"><thead><tr><th>MacroArea</th><th class="r">Mese corrente</th><th class="r">Mese prec.</th><th class="r">Diff.</th><th class="r">Var.%</th></tr></thead><tbody id="tbody-mens"></tbody></table>
+      <table class="dt"><thead><tr><th>MacroArea</th><th class="r">Totale</th><th class="r">Privati</th><th class="r">Assicurati</th><th class="r">% Ass.</th><th class="r">Prec.</th><th class="r">Diff.</th><th class="r">Var.%</th></tr></thead><tbody id="tbody-mens"></tbody></table>
       <div class="divider"></div>
       <div class="field"><label class="field-label">Note aggiuntive (opzionale)</label><textarea class="input" id="note-mens" placeholder="Contesti particolari per questo mese..."></textarea></div>
       <div class="actions">
         <button class="btn success" onclick="generaAudit('mensile')">📝 Genera Audit Mensile</button>
         <button class="btn outline sm" onclick="salvaStoricoMensile()">💾 Salva in storico</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- GRAFICI -->
+  <div class="panel" id="panel-grafici">
+    <div class="card">
+      <div class="card-title">Grafici settimanali</div>
+      <div id="grafici-sett-empty" class="empty">Genera almeno 2 audit settimanali per visualizzare i grafici.</div>
+      <div id="grafici-sett-content" style="display:none">
+        <div style="margin-bottom:24px">
+          <div class="section-label" style="margin-bottom:10px">Andamento totale settimana per settimana</div>
+          <canvas id="chart-sett-trend" height="80"></canvas>
+        </div>
+        <div class="grid2" style="margin-bottom:24px">
+          <div>
+            <div class="section-label" style="margin-bottom:10px">Privati vs Assicurati (ultima settimana)</div>
+            <canvas id="chart-sett-canale" height="200"></canvas>
+          </div>
+          <div>
+            <div class="section-label" style="margin-bottom:10px">Peso % per area (ultima settimana)</div>
+            <canvas id="chart-sett-peso" height="200"></canvas>
+          </div>
+        </div>
+        <div style="margin-bottom:8px">
+          <div class="section-label" style="margin-bottom:10px">Confronto per area — ultime 2 settimane</div>
+          <canvas id="chart-sett-aree" height="90"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Grafici mensili</div>
+      <div id="grafici-mens-empty" class="empty">Genera almeno 2 audit mensili per visualizzare i grafici mensili.</div>
+      <div id="grafici-mens-content" style="display:none">
+        <div style="margin-bottom:24px">
+          <div class="section-label" style="margin-bottom:10px">Andamento totale mese per mese</div>
+          <canvas id="chart-mens-trend" height="80"></canvas>
+        </div>
+        <div class="grid2" style="margin-bottom:24px">
+          <div>
+            <div class="section-label" style="margin-bottom:10px">Privati vs Assicurati (ultimo mese)</div>
+            <canvas id="chart-mens-canale" height="200"></canvas>
+          </div>
+          <div>
+            <div class="section-label" style="margin-bottom:10px">Peso % per area (ultimo mese)</div>
+            <canvas id="chart-mens-peso" height="200"></canvas>
+          </div>
+        </div>
+        <div style="margin-bottom:24px">
+          <div class="section-label" style="margin-bottom:10px">Crescita % per area (vs mese precedente)</div>
+          <canvas id="chart-mens-crescita" height="80"></canvas>
+        </div>
+        <div style="margin-bottom:8px">
+          <div class="section-label" style="margin-bottom:10px">Confronto per area — ultimi 2 mesi</div>
+          <canvas id="chart-mens-aree" height="90"></canvas>
+        </div>
       </div>
     </div>
   </div>
@@ -503,19 +562,44 @@ function calcolaMensile(){
 
   const ct=curr._totali,pt=prev._totali||{totale:0,privati:0,assicurati:0};
   const d=ct.totale-pt.totale,pos=d>=0;
+  const _totPrivM=MACROAREE.reduce((s,a)=>s+curr[a].privati,0);
+  const _totAssM=MACROAREE.reduce((s,a)=>s+curr[a].assicurati,0);
   document.getElementById('stats-mens').innerHTML=`
-    <div class="stat"><div class="stat-label">Mese corrente</div><div class="stat-value">${ct.totale}</div></div>
-    <div class="stat"><div class="stat-label">Mese precedente</div><div class="stat-value">${pt.totale}</div></div>
-    <div class="stat"><div class="stat-label">Variazione</div><div class="stat-value" style="color:${pos?'#0f6e56':'#a32d2d'}">${sign(d)}${d}</div></div>
-    <div class="stat"><div class="stat-label">Var.%</div><div class="stat-value" style="color:${pos?'#0f6e56':'#a32d2d'}">${sign(d)}${pct(ct.totale,pt.totale)}%</div></div>`;
+    <div class="stat"><div class="stat-label">Totale mese</div><div class="stat-value">${ct.totale}</div></div>
+    <div class="stat"><div class="stat-label">Privati</div><div class="stat-value">${_totPrivM}</div><div class="stat-sub">${ct.totale>0?Math.round(_totPrivM/ct.totale*100):0}%</div></div>
+    <div class="stat"><div class="stat-label">Assicurati</div><div class="stat-value">${_totAssM}</div><div class="stat-sub">${ct.totale>0?Math.round(_totAssM/ct.totale*100):0}%</div></div>
+    <div class="stat"><div class="stat-label">Vs mese prec.</div><div class="stat-value" style="color:${pos?'#0f6e56':'#a32d2d'}">${sign(d)}${d} (${sign(d)}${pct(ct.totale,pt.totale)}%)</div></div>`;
 
   const tb=document.getElementById('tbody-mens');
   tb.innerHTML='';
   MACROAREE.forEach(area=>{
-    const c=curr[area].totale,p=(prev[area]||{}).totale||0,df=c-p;
-    tb.innerHTML+=`<tr><td class="b">${area}</td><td class="r b">${c}</td><td class="r" style="color:#5a5a55">${p}</td><td class="r" style="color:${df>=0?'#0f6e56':'#a32d2d'};font-weight:600">${sign(df)}${df}</td><td class="r"><span class="badge ${badgeColor(df)}">${sign(df)}${pct(c,p)}%</span></td></tr>`;
+    const c=curr[area].totale,priv=curr[area].privati,ass=curr[area].assicurati;
+    const p=(prev[area]||{}).totale||0,df=c-p;
+    const pctAss=c>0?Math.round(ass/c*100):0;
+    tb.innerHTML+=`<tr>
+      <td class="b">${area}</td>
+      <td class="r b">${c}</td>
+      <td class="r">${priv}</td>
+      <td class="r">${ass}</td>
+      <td class="r"><span class="badge ${ass>0?'green':'warn'}">${pctAss}%</span></td>
+      <td class="r" style="color:#5a5a55">${p}</td>
+      <td class="r" style="color:${df>=0?'#0f6e56':'#a32d2d'};font-weight:600">${sign(df)}${df}</td>
+      <td class="r"><span class="badge ${badgeColor(df)}">${sign(df)}${pct(c,p)}%</span></td>
+    </tr>`;
   });
-  tb.innerHTML+=`<tr class="tot"><td>TOTALE</td><td class="r">${ct.totale}</td><td class="r">${pt.totale}</td><td class="r" style="color:${pos?'#0f6e56':'#a32d2d'}">${sign(d)}${d}</td><td class="r"><span class="badge ${badgeColor(d)}">${sign(d)}${pct(ct.totale,pt.totale)}%</span></td></tr>`;
+  const totPriv=MACROAREE.reduce((s,a)=>s+curr[a].privati,0);
+  const totAss=MACROAREE.reduce((s,a)=>s+curr[a].assicurati,0);
+  const totPctAss=ct.totale>0?Math.round(totAss/ct.totale*100):0;
+  tb.innerHTML+=`<tr class="tot">
+    <td>TOTALE</td>
+    <td class="r">${ct.totale}</td>
+    <td class="r">${totPriv}</td>
+    <td class="r">${totAss}</td>
+    <td class="r"><span class="badge blue">${totPctAss}%</span></td>
+    <td class="r">${pt.totale}</td>
+    <td class="r" style="color:${pos?'#0f6e56':'#a32d2d'}">${sign(d)}${d}</td>
+    <td class="r"><span class="badge ${badgeColor(d)}">${sign(d)}${pct(ct.totale,pt.totale)}%</span></td>
+  </tr>`;
 
   document.getElementById('card-risultati-mensili').style.display='block';
   document.getElementById('card-risultati-mensili').scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -546,6 +630,9 @@ function salvaStoricoMensile(){
 }
 
 function _salvaStoricoMens(mese,curr){
+  const _privM=MACROAREE.reduce((s,a)=>s+curr[a].privati,0);
+  const _assM=MACROAREE.reduce((s,a)=>s+curr[a].assicurati,0);
+  if(curr._totali){curr._totali.privati=_privM;curr._totali.assicurati=_assM;}
   const record={mese,label:formatM(mese),data:new Date().toISOString(),aree:curr,totali:curr._totali};
   STORICO_MENS=STORICO_MENS.filter(s=>s.mese!==mese);
   STORICO_MENS.push(record);
@@ -787,6 +874,222 @@ ${note?`\nNOTE:\n${note}`:''}
 Scrivi in italiano, professionale. Includi variazioni % specifiche. Solo testo ed elenchi, nessuna tabella.`;
 }
 
+
+// ═══════════════════════════════════════════════════════════════
+// GRAFICI
+// ═══════════════════════════════════════════════════════════════
+const CHART_REGISTRY = {};
+const COLORI = {
+  blu:    '#1d4e89',
+  verde:  '#0f6e56',
+  ambra:  '#854f0b',
+  rosso:  '#a32d2d',
+  viola:  '#534ab7',
+  corallo:'#d85a30',
+  aree: ['#1d4e89','#0f6e56','#854f0b','#534ab7','#d85a30','#1d9e75']
+};
+
+function distruggiChart(id) {
+  if (CHART_REGISTRY[id]) { CHART_REGISTRY[id].destroy(); delete CHART_REGISTRY[id]; }
+}
+
+function creaChart(id, config) {
+  distruggiChart(id);
+  const el = document.getElementById(id);
+  if (!el) return;
+  CHART_REGISTRY[id] = new Chart(el, config);
+}
+
+function renderGrafici() {
+  const sett = loadStorico();
+  const mens = loadStoricoMens();
+
+  // ── SETTIMANALE ──────────────────────────────────────────
+  const settEmpty   = document.getElementById('grafici-sett-empty');
+  const settContent = document.getElementById('grafici-sett-content');
+
+  if (sett.length >= 1) {
+    settEmpty.style.display   = 'none';
+    settContent.style.display = 'block';
+
+    const labels    = sett.map(s => s.label.replace(' — ', '\n'));
+    const totali    = sett.map(s => s.totali.totale);
+    const privati   = sett.map(s => s.totali.privati);
+    const assicurati = sett.map(s => s.totali.assicurati);
+    const last      = sett[sett.length - 1];
+
+    // Trend totale (linea)
+    creaChart('chart-sett-trend', {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Totale', data: totali, borderColor: COLORI.blu, backgroundColor: COLORI.blu + '22', tension: 0.35, fill: true, pointRadius: 5, pointBackgroundColor: COLORI.blu },
+          { label: 'Privati', data: privati, borderColor: COLORI.verde, backgroundColor: 'transparent', tension: 0.35, borderDash: [4,3], pointRadius: 4 },
+          { label: 'Assicurati', data: assicurati, borderColor: COLORI.ambra, backgroundColor: 'transparent', tension: 0.35, borderDash: [2,2], pointRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'top' }, title: { display: false } },
+        scales: { y: { beginAtZero: false, grid: { color: '#e0ddd6' } }, x: { grid: { display: false } } }
+      }
+    });
+
+    // Privati vs Assicurati — doughnut ultima settimana
+    creaChart('chart-sett-canale', {
+      type: 'doughnut',
+      data: {
+        labels: ['Privati', 'Assicurati'],
+        datasets: [{ data: [last.totali.privati, last.totali.assicurati], backgroundColor: [COLORI.verde, COLORI.ambra], borderWidth: 2 }]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    // Peso % per area — doughnut ultima settimana
+    creaChart('chart-sett-peso', {
+      type: 'doughnut',
+      data: {
+        labels: MACROAREE,
+        datasets: [{ data: MACROAREE.map(a => (last.aree[a]||{}).totale||0), backgroundColor: COLORI.aree, borderWidth: 2 }]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    // Confronto aree ultime 2 settimane — barre raggruppate
+    const ultime2 = sett.slice(-2);
+    creaChart('chart-sett-aree', {
+      type: 'bar',
+      data: {
+        labels: MACROAREE,
+        datasets: ultime2.map((s, i) => ({
+          label: s.label,
+          data: MACROAREE.map(a => (s.aree[a]||{}).totale||0),
+          backgroundColor: i === 0 ? COLORI.blu + '88' : COLORI.verde + 'cc',
+          borderRadius: 4
+        }))
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true, grid: { color: '#e0ddd6' } }, x: { grid: { display: false } } }
+      }
+    });
+
+  } else {
+    settEmpty.style.display   = 'block';
+    settContent.style.display = 'none';
+  }
+
+  // ── MENSILE ──────────────────────────────────────────────
+  const mensEmpty   = document.getElementById('grafici-mens-empty');
+  const mensContent = document.getElementById('grafici-mens-content');
+
+  if (mens.length >= 1) {
+    mensEmpty.style.display   = 'none';
+    mensContent.style.display = 'block';
+
+    const labelsM     = mens.map(s => s.label);
+    const totaliM     = mens.map(s => s.totali.totale);
+    const lastM       = mens[mens.length - 1];
+    const prevM       = mens.length >= 2 ? mens[mens.length - 2] : null;
+
+    // Trend mensile (linea)
+    creaChart('chart-mens-trend', {
+      type: 'line',
+      data: {
+        labels: labelsM,
+        datasets: [
+          { label: 'Totale', data: totaliM, borderColor: COLORI.blu, backgroundColor: COLORI.blu + '22', tension: 0.35, fill: true, pointRadius: 5, pointBackgroundColor: COLORI.blu },
+          { label: 'Privati', data: mens.map(s => s.totali.privati), borderColor: COLORI.verde, backgroundColor: 'transparent', tension: 0.35, borderDash: [4,3], pointRadius: 4 },
+          { label: 'Assicurati', data: mens.map(s => s.totali.assicurati), borderColor: COLORI.ambra, backgroundColor: 'transparent', tension: 0.35, borderDash: [2,2], pointRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: false, grid: { color: '#e0ddd6' } }, x: { grid: { display: false } } }
+      }
+    });
+
+    // Privati vs Assicurati ultimo mese — doughnut
+    const lastMPriv = MACROAREE.reduce((s,a)=>(s+(lastM.aree[a]||{}).privati||0),0);
+    const lastMAss  = MACROAREE.reduce((s,a)=>(s+(lastM.aree[a]||{}).assicurati||0),0);
+    creaChart('chart-mens-canale', {
+      type: 'doughnut',
+      data: {
+        labels: ['Privati', 'Assicurati'],
+        datasets: [{ data: [lastMPriv, lastMAss], backgroundColor: [COLORI.verde, COLORI.ambra], borderWidth: 2 }]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    // Peso % per area ultimo mese — doughnut
+    creaChart('chart-mens-peso', {
+      type: 'doughnut',
+      data: {
+        labels: MACROAREE,
+        datasets: [{ data: MACROAREE.map(a => (lastM.aree[a]||{}).totale||0), backgroundColor: COLORI.aree, borderWidth: 2 }]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    // Crescita % per area (ultimo mese vs precedente)
+    if (prevM) {
+      const crescite = MACROAREE.map(a => {
+        const c = (lastM.aree[a]||{}).totale||0;
+        const p = (prevM.aree[a]||{}).totale||0;
+        return p > 0 ? parseFloat(((c-p)/p*100).toFixed(1)) : 0;
+      });
+      const bgCrescita = crescite.map(v => v >= 0 ? COLORI.verde + 'cc' : COLORI.rosso + 'cc');
+      creaChart('chart-mens-crescita', {
+        type: 'bar',
+        data: {
+          labels: MACROAREE,
+          datasets: [{ label: 'Var. % vs mese prec.', data: crescite, backgroundColor: bgCrescita, borderRadius: 4 }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { grid: { color: '#e0ddd6' }, ticks: { callback: v => v + '%' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+    } else {
+      document.getElementById('chart-mens-crescita').parentElement.innerHTML = '<div class="empty" style="padding:16px">Serve almeno 2 mesi in storico per la crescita %.</div>';
+    }
+
+    // Confronto per area ultimi 2 mesi — barre raggruppate
+    const ultimi2M = mens.slice(-2);
+    creaChart('chart-mens-aree', {
+      type: 'bar',
+      data: {
+        labels: MACROAREE,
+        datasets: ultimi2M.map((s, i) => ({
+          label: s.label,
+          data: MACROAREE.map(a => (s.aree[a]||{}).totale||0),
+          backgroundColor: i === 0 ? COLORI.blu + '88' : COLORI.verde + 'cc',
+          borderRadius: 4
+        }))
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true, grid: { color: '#e0ddd6' } }, x: { grid: { display: false } } }
+      }
+    });
+
+  } else {
+    mensEmpty.style.display   = 'block';
+    mensContent.style.display = 'none';
+  }
+}
+// ═══════════════════════════════════════════════════════════════
+// END GRAFICI
+// ═══════════════════════════════════════════════════════════════
+
 // ═══════════════════════════════════════════════════════════════
 // UI HELPERS
 // ═══════════════════════════════════════════════════════════════
@@ -795,6 +1098,7 @@ function showTab(name, btn){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
   if(btn)btn.classList.add('active');
+  if(name==='grafici') setTimeout(renderGrafici, 80);
 }
 
 // ═══════════════════════════════════════════════════════════════
