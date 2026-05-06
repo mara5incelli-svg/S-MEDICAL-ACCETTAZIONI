@@ -637,9 +637,10 @@ function rendM(){
   var rev=stor.slice().reverse();
   for(var i=0;i<rev.length;i++){
     var s=rev[i];
+    var meseSafe=s.mese.replace(/[^0-9\-]/g,'');
     html+='<div class="hrow"><div style="font-size:13px;font-weight:700;min-width:140px;text-transform:capitalize">'+s.label+'</div>'+
       '<div style="font-size:13px;color:#5a5a55;flex:1">Tot: <strong>'+s.tot.t+'</strong> | Priv: '+s.tot.p+' | Ass: '+s.tot.a+'</div>'+
-      '<button class="hdel" data-mese="'+s.mese+'" onclick="delM(this.getAttribute('data-mese'))">&#10005;</button></div>';
+      '<button class="hdel" data-m="'+meseSafe+'" onclick="delM(this.dataset.m)">&#10005;</button></div>';
   }
   el.innerHTML=html;
 }
