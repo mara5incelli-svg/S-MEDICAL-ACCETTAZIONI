@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>S-Medical Audit</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:"Helvetica Neue",Arial,sans-serif;background:#f7f6f2;color:#1a1a18}
@@ -74,7 +74,11 @@ function elaMain(data){
 }
 function elaLab(data){
   const map=new Map();
-  data.forEach(row=>{const id=row['N. Assegnazione'];if(id&&!map.has(id))map.set(id,row['Listino']||'');});
+  data.forEach(row=>{
+    const id=row['N. Assegnazione']||row['Numero']||row['N.Assegnazione']||row['Numero/Anno']||'';
+    const listino=row['Listino']||row['Fatturare a']||row['Fondo']||'';
+    if(id&&!map.has(String(id)))map.set(String(id),listino);
+  });
   let t=0,p=0,a=0;map.forEach(l=>{t++;if(isAss(l))a++;else p++;});
   return{t,p,a};
 }
